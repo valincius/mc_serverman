@@ -1,0 +1,73 @@
+{
+  "format": 1,
+  "restore": {
+    "/home/john/git/mc_serverman/mc_serverman.csproj": {}
+  },
+  "projects": {
+    "/home/john/git/mc_serverman/mc_serverman.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/home/john/git/mc_serverman/mc_serverman.csproj",
+        "projectName": "mc_serverman",
+        "projectPath": "/home/john/git/mc_serverman/mc_serverman.csproj",
+        "packagesPath": "/home/john/.nuget/packages/",
+        "outputPath": "/home/john/git/mc_serverman/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/home/john/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "netcoreapp3.1"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "netcoreapp3.1": {
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "netcoreapp3.1": {
+          "dependencies": {
+            "Docker.DotNet": {
+              "target": "Package",
+              "version": "[3.125.2, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.NETCore.App.Host.linux-x64",
+              "version": "[3.1.0, 3.1.0]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.AspNetCore.App": {
+              "privateAssets": "none"
+            },
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/3.1.100/RuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}
