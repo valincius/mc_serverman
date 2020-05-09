@@ -1,92 +1,94 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Net.NetworkInformation;
+using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Docker.DotNet;
 using Docker.DotNet.Models;
-using System.Linq;
-using System.Net.NetworkInformation;
 using mc_serverman.Models;
-using System.Runtime.InteropServices;
 
 namespace mc_serverman.Services {
-    public class DockerService {
-        private const string MC_DOCKER_IMAGE_NAME = "itzg/minecraft-server";
-        private DockerClient DockerClient;
+	public class DockerService {
+		private const string MC_DOCKER_IMAGE_NAME = "itzg/minecraft-server";
+		private DockerClient DockerClient;
 
-        private IEnumerable<Container> _containers;
-        public IEnumerable<Container> Containers => _containers;
+		public List<MCContainer> Containers { get; private set; } = new List<MCContainer>();
 
-        public DockerService() {
-            DockerClient = new DockerClientConfiguration(LocalDockerUri()).CreateClient();
-        }
-        public Uri LocalDockerUri() {
-            var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-            return isWindows ? new Uri("npipe://./pipe/docker_engine") : new Uri("unix:/var/run/docker.sock");
-        }
-        public async Task<string> GetContainerStatus(string ID) {
-            return (await DockerClient.Containers.InspectContainerAsync(ID)).State.Health.Status;
-        }
-        public async Task RefreshContainers() {
-            var containers = await DockerClient.Containers.ListContainersAsync(new ContainersListParameters());
-            var tasks = containers.Where(c => c.Image == MC_DOCKER_IMAGE_NAME).Select(async c =>
-                new Container {
-                    ID = c.ID,
-                    Status = await GetContainerStatus(c.ID),
-                    Name = c.Names.Where(n => !string.IsNullOrEmpty(n)).Single().Substring(1),
-                    Port = c.Ports.Where(p => p.PublicPort > 0).Select(p => p.PublicPort).SingleOrDefault(),
-                }
-            );
-            _containers = await Task.WhenAll(tasks);
-        }
-        private int GetNextAvailablePort(int startingPort) {
-            var portArray = new List<int>();
-            var properties = IPGlobalProperties.GetIPGlobalProperties();
+		public DockerService() {
+			DockerClient = new DockerClientConfiguration(LocalDockerUri()).CreateClient();
+		}
+		public Uri LocalDockerUri() {
+			var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+			return isWindows ? new Uri("npipe://./pipe/docker_engine") : new Uri("unix:/var/run/docker.sock");
+		}
+		public async Task<string> GetContainerStatus(string ID) {
+			return (await DockerClient.Containers.InspectContainerAsync(ID)).State.Health.Status;
+		}
+		public async Task RefreshContainers() {
+			var dockerContainers = (await DockerClient.Containers.ListContainersAsync(new ContainersListParameters()))
+				.Where(c => c.Image == MC_DOCKER_IMAGE_NAME);
+			
+			await Task.WhenAll(dockerContainers.Select(async dockerContainer => {
+				var containerID = dockerContainer.ID;
+				var container = Containers.Where(c => c.ID == containerID).SingleOrDefault() ?? new MCContainer();
 
-            var connections = properties.GetActiveTcpConnections();
-            portArray.AddRange(from n in connections where n.LocalEndPoint.Port >= startingPort select n.LocalEndPoint.Port);
+				container.ID = containerID;
+				container.Status = await GetContainerStatus(containerID);
+				container.Name = dockerContainer.Names.Where(n => !string.IsNullOrEmpty(n)).Single().Substring(1);
+				container.Port = dockerContainer.Ports.Where(p => p.PublicPort > 0).Select(p => p.PublicPort).SingleOrDefault();
+				container.StdOut ??= string.Empty;
+				container.RconStatusStream ??= await container.ConnectToRcon(DockerClient);
+				container.RconStream ??= await container.ConnectToRcon(DockerClient);
+				string listResponse = await container.RconStatusStream.Send("list");
+				// need to validate this - also might want to make sure we're actually connected to rcon before sending anything
+				var listResponseParsed = new Regex(@"There are (?<total>\d+) of a max (?<max>\d+) players online: (?<users>.*)\r\n").Match(listResponse);
+				container.TotalPlayers = int.Parse(listResponseParsed.Groups["total"].ToString());
+				container.MaxPlayers = int.Parse(listResponseParsed.Groups["max"].ToString());
+				container.Players = listResponseParsed.Groups["users"].ToString().Split(", ").Where(s => s != string.Empty).ToList();
 
-            var endPoints = properties.GetActiveTcpListeners();
-            portArray.AddRange(from n in endPoints where n.Port >= startingPort select n.Port);
+				if (!Containers.Contains(container)) {
+					container.StdOut += await container.RconStream.Read();
+					Containers.Add(container);
+				}
+			}));
+		}
+		private int GetNextAvailablePort(int startingPort) {
+			var portArray = new List<int>();
+			var properties = IPGlobalProperties.GetIPGlobalProperties();
 
-            portArray.Sort();
+			var connections = properties.GetActiveTcpConnections();
+			portArray.AddRange(connections.Where(c => c.LocalEndPoint.Port >= startingPort).Select(c => c.LocalEndPoint.Port));
 
-            for (var i = startingPort; i < UInt16.MaxValue; i++)
-                if (!portArray.Contains(i))
-                    return i;
+			var endPoints = properties.GetActiveTcpListeners();
+			portArray.AddRange(endPoints.Where(e => e.Port >= startingPort).Select(e => e.Port));
 
-            return 0;
-        }
-        public async Task CreateNewServer() {
-            var container = await DockerClient.Containers.CreateContainerAsync(new CreateContainerParameters {
-                Image = MC_DOCKER_IMAGE_NAME,
-                Env = new List<string> { 
-                    "EULA=TRUE"
-                },
-                ExposedPorts = new Dictionary<string, EmptyStruct> {
-                    { "25565", default }
-                },
-                HostConfig = new HostConfig {
-                    PortBindings = new Dictionary<string, IList<PortBinding>> {
-                        { "25565", new List<PortBinding> { new PortBinding { HostPort = GetNextAvailablePort(25565).ToString() } } }
-                    },
-                }
-            });
+			portArray.Sort();
 
-            await DockerClient.Containers.StartContainerAsync(container.ID, null);
-        }
-        public async Task<MultiplexedStream> ConnectToRcon(string ID) {
-            var response = await DockerClient.Containers.ExecCreateContainerAsync(ID, new ContainerExecCreateParameters {
-                Cmd = new List<string> {
-                    "rcon-cli"
-                },
-                AttachStderr = true,
-                AttachStdin = true,
-                AttachStdout = true,
-                Detach = false,
-                Tty = true,
-                Privileged = true
-            });
-            return await DockerClient.Containers.StartAndAttachContainerExecAsync(response.ID, true);
-        }
-    }
+			for (var i = startingPort; i < ushort.MaxValue; i++)
+				if (!portArray.Contains(i))
+					return i;
+
+			return 0;
+		}
+		public async Task CreateNewServer() {
+			var container = await DockerClient.Containers.CreateContainerAsync(new CreateContainerParameters {
+				Image = MC_DOCKER_IMAGE_NAME,
+				Env = new List<string> {
+					"EULA=TRUE"
+				},
+				ExposedPorts = new Dictionary<string, EmptyStruct> {
+					{ "25565", default }
+				},
+				HostConfig = new HostConfig {
+					PortBindings = new Dictionary<string, IList<PortBinding>> {
+						{ "25565", new List<PortBinding> { new PortBinding { HostPort = GetNextAvailablePort(25565).ToString() } } }
+					},
+				}
+			});
+
+			await DockerClient.Containers.StartContainerAsync(container.ID, null);
+		}
+	}
 }
