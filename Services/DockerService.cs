@@ -19,10 +19,8 @@ namespace mc_serverman.Services {
 		public DockerService() {
 			DockerClient = new DockerClientConfiguration(LocalDockerUri()).CreateClient();
 		}
-		public Uri LocalDockerUri() {
-			var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-			return isWindows ? new Uri("npipe://./pipe/docker_engine") : new Uri("unix:/var/run/docker.sock");
-		}
+		public Uri LocalDockerUri() => new Uri(RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "npipe://./pipe/docker_engine" : "unix:/var/run/docker.sock");
+
 		public async Task<string> GetContainerStatus(string ID) {
 			return (await DockerClient.Containers.InspectContainerAsync(ID)).State.Health.Status;
 		}
@@ -42,11 +40,14 @@ namespace mc_serverman.Services {
 				container.RconStatusStream ??= await container.ConnectToRcon(DockerClient);
 				container.RconStream ??= await container.ConnectToRcon(DockerClient);
 				string listResponse = await container.RconStatusStream.Send("list");
-				// need to validate this - also might want to make sure we're actually connected to rcon before sending anything
 				var listResponseParsed = new Regex(@"There are (?<total>\d+) of a max (?<max>\d+) players online: (?<users>.*)\r\n").Match(listResponse);
-				container.TotalPlayers = int.Parse(listResponseParsed.Groups["total"].ToString());
-				container.MaxPlayers = int.Parse(listResponseParsed.Groups["max"].ToString());
-				container.Players = listResponseParsed.Groups["users"].ToString().Split(", ").Where(s => s != string.Empty).ToList();
+				if (listResponseParsed.Success) {
+					container.TotalPlayers = int.Parse(listResponseParsed.Groups["total"].ToString());
+					container.MaxPlayers = int.Parse(listResponseParsed.Groups["max"].ToString());
+					container.Players = listResponseParsed.Groups["users"].ToString().Split(", ").Where(s => s != string.Empty).ToList();
+				} else {
+					container.Players = new List<string>();
+				}
 
 				if (!Containers.Contains(container)) {
 					container.StdOut += await container.RconStream.Read();

@@ -64,9 +64,7 @@
         }
     }
 
-    private async Task CreateNewServer() {
-        await DockerService.CreateNewServer();
-    }
+    private async Task CreateNewServer() => await DockerService.CreateNewServer();
 
     private void SelectContainer(MCContainer container) {
         if (selectedContainer != container) {
