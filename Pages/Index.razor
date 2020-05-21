@@ -6,17 +6,19 @@
 
 @inject DockerService DockerService
 
+@implements IDisposable
+
 @if (DockerService.Containers != null) {
     <table class="table">
         <!-- make this look like minecraft client server menu -->
         <tbody>
             @foreach (var container in DockerService.Containers.ToList()) {
-            <tr @onclick="(() => SelectContainer(container))" style="background-color: @(container == selectedContainer ? "lightgreen" : "");">
-                <td>@container.Name (@container.ID.Substring(0, 12))</td>
-                <td>@container.Status</td>
-                <td>@container.Port</td>
-                <td>@container.TotalPlayers / @container.MaxPlayers (@string.Join(", ", container.Players.Select(p => $"-{p}-")))</td>
-            </tr>
+                <tr @onclick="(() => SelectContainer(container))" style="background-color: @(container == selectedContainer ? "lightgreen" : "");">
+                    <td>@container.Name (@container.ID.Substring(0, 12))</td>
+                    <td>@container.Status</td>
+                    <td>@container.Port</td>
+                    <td>@container.TotalPlayers / @container.MaxPlayers (@string.Join(", ", container.Players.Select(p => $"-{p}-")))</td>
+                </tr>
             }
         </tbody>
     </table>
@@ -37,8 +39,6 @@
 }
 
 @code {
-    // refreshing sometimes breaks the app, dunno why, hard to debug
-
     MCContainer selectedContainer;
 
     CancellationTokenSource pollingCancellationToken;
@@ -54,10 +54,18 @@
         base.OnAfterRender(firstRender);
     }
 
+    public void Dispose() {
+        pollingCancellationToken?.Cancel();
+    }
+
     private async void PollForUpdates() {
         pollingCancellationToken = new CancellationTokenSource();
         while (!pollingCancellationToken.IsCancellationRequested) {
-            await DockerService.RefreshContainers();
+            try {
+                await DockerService.RefreshContainers();
+            } catch {
+                pollingCancellationToken.Cancel();
+            }
             StateHasChanged();
 
             await Task.Delay(500);
