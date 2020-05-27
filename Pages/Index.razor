@@ -4,7 +4,7 @@
 @using mc_serverman.Services
 @using mc_serverman.Models
 
-@inject DockerService DockerService
+@inject MC_DockerService DockerService
 
 @implements IDisposable
 
@@ -39,7 +39,7 @@
 }
 
 @code {
-    MCContainer selectedContainer;
+    MC_Container selectedContainer;
 
     CancellationTokenSource pollingCancellationToken;
     Timer refreshTimer;
@@ -74,7 +74,7 @@
 
     private async Task CreateNewServer() => await DockerService.CreateNewServer();
 
-    private void SelectContainer(MCContainer container) {
+    private void SelectContainer(MC_Container container) {
         if (selectedContainer != container) {
             selectedContainer = container;
         } else {

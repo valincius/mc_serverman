@@ -18,7 +18,7 @@ namespace mc_serverman {
 		public void ConfigureServices(IServiceCollection services) {
 			services.AddRazorPages();
 			services.AddServerSideBlazor();
-			services.AddSingleton<DockerService>();
+			services.AddSingleton<MC_DockerService>();
 		}
 
 		// This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

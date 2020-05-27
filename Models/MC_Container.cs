@@ -4,7 +4,7 @@ using Docker.DotNet;
 using Docker.DotNet.Models;
 
 namespace mc_serverman.Models {
-	public class MCContainer {
+	public class MC_Container {
 		public string ID { get; set; }
 		public string Status { get; set; }
 		public string Name { get; set; }

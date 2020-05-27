@@ -10,13 +10,13 @@ using Docker.DotNet.Models;
 using mc_serverman.Models;
 
 namespace mc_serverman.Services {
-	public class DockerService {
+	public class MC_DockerService {
 		private const string MC_DOCKER_IMAGE_NAME = "itzg/minecraft-server";
 		private DockerClient DockerClient;
 
-		public List<MCContainer> Containers { get; private set; } = new List<MCContainer>();
+		public List<MC_Container> Containers { get; private set; } = new List<MC_Container>();
 
-		public DockerService() {
+		public MC_DockerService() {
 			DockerClient = new DockerClientConfiguration(LocalDockerUri()).CreateClient();
 		}
 		public Uri LocalDockerUri() => new Uri(RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "npipe://./pipe/docker_engine" : "unix:/var/run/docker.sock");
@@ -30,7 +30,7 @@ namespace mc_serverman.Services {
 			
 			await Task.WhenAll(dockerContainers.Select(async dockerContainer => {
 				var containerID = dockerContainer.ID;
-				var container = Containers.Where(c => c.ID == containerID).SingleOrDefault() ?? new MCContainer();
+				var container = Containers.Where(c => c.ID == containerID).SingleOrDefault() ?? new MC_Container();
 
 				container.ID = containerID;
 				container.Status = await GetContainerStatus(containerID);
