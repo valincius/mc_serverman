@@ -10,7 +10,10 @@
 
 @if (DockerService.Containers != null) {
     <table class="table">
-        <!-- make this look like minecraft client server menu -->
+        <!--
+            make this look like minecraft client server menu
+            won't copy minecraft client menu, will go with a more modern dashboard kind of thing
+        -->
         <tbody>
             @foreach (var container in DockerService.Containers.ToList()) {
                 <tr @onclick="(() => SelectContainer(container))" style="background-color: @(container == selectedContainer ? "lightgreen" : "");">
