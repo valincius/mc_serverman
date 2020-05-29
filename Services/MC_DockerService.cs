@@ -37,7 +37,7 @@ namespace mc_serverman.Services {
 				container.Name = dockerContainer.Names.Where(n => !string.IsNullOrEmpty(n)).Single().Substring(1);
 				container.Port = dockerContainer.Ports.Where(p => p.PublicPort > 0).Select(p => p.PublicPort).SingleOrDefault();
 				container.StdOut ??= string.Empty;
-				container.RconStatusStream ??= await container.ConnectToRcon(DockerClient);
+				container.RconStatusStream ??= await container.ConnectToRcon(DockerClient); // add some reconnect logic here or maybe a button instead...
 				container.RconStream ??= await container.ConnectToRcon(DockerClient);
 				string listResponse = await container.RconStatusStream.Send("list");
 				var listResponseParsed = new Regex(@"There are (?<total>\d+) of a max (?<max>\d+) players online: (?<users>.*)\r\n").Match(listResponse);

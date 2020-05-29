@@ -8,7 +8,7 @@
 
 @implements IDisposable
 
-@if (DockerService.Containers != null) {
+@if (DockerService.Containers?.Count > 0) {
     <table class="table">
         <!--
             make this look like minecraft client server menu
@@ -25,6 +25,8 @@
             }
         </tbody>
     </table>
+} else {
+    <p>No MC containers running...</p>
 }
 
 <button @onclick="CreateNewServer">Create New Server</button> <!-- Show a modal here, allow choosing name, port, config options, persistence -->
