@@ -28,7 +28,13 @@ namespace mc_serverman.Models {
 				Tty = true,
 				Privileged = true
 			});
-			return new RconStream(await dockerClient.Containers.StartAndAttachContainerExecAsync(response.ID, true));
+			var stream = new RconStream(await dockerClient.Containers.StartAndAttachContainerExecAsync(response.ID, true));
+			var res = await stream.Read();
+			StdOut += res;
+			if (res == "> ") {
+				return stream;
+			}
+			return null;
 		}
 	}
 }

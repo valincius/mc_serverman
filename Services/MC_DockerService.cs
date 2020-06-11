@@ -39,18 +39,21 @@ namespace mc_serverman.Services {
 				container.StdOut ??= string.Empty;
 				container.RconStatusStream ??= await container.ConnectToRcon(DockerClient); // add some reconnect logic here or maybe a button instead...
 				container.RconStream ??= await container.ConnectToRcon(DockerClient);
-				string listResponse = await container.RconStatusStream.Send("list");
-				var listResponseParsed = new Regex(@"There are (?<total>\d+) of a max (?<max>\d+) players online: (?<users>.*)\r\n").Match(listResponse);
-				if (listResponseParsed.Success) {
-					container.TotalPlayers = int.Parse(listResponseParsed.Groups["total"].ToString());
-					container.MaxPlayers = int.Parse(listResponseParsed.Groups["max"].ToString());
-					container.Players = listResponseParsed.Groups["users"].ToString().Split(", ").Where(s => s != string.Empty).ToList();
-				} else {
-					container.Players = new List<string>();
+				container.Players ??= new List<string>();
+				if (container.RconStatusStream != null) {
+					string listResponse = await container.RconStatusStream.Send("list") ?? string.Empty;
+					var listResponseParsed = new Regex(@"There are (?<total>\d+) of a max (?<max>\d+) players online: (?<users>.*)\r\n").Match(listResponse);
+					if (listResponseParsed.Success) {
+						container.TotalPlayers = int.Parse(listResponseParsed.Groups["total"].ToString());
+						container.MaxPlayers = int.Parse(listResponseParsed.Groups["max"].ToString());
+						container.Players = listResponseParsed.Groups["users"].ToString().Split(", ").Where(s => s != string.Empty).ToList();
+					}
 				}
 
 				if (!Containers.Contains(container)) {
-					container.StdOut += await container.RconStream.Read();
+					if (container.RconStream != null) {
+						container.StdOut += await container.RconStream.Read();
+					}
 					Containers.Add(container);
 				}
 			}));
@@ -67,9 +70,11 @@ namespace mc_serverman.Services {
 
 			portArray.Sort();
 
-			for (var i = startingPort; i < ushort.MaxValue; i++)
-				if (!portArray.Contains(i))
+			for (var i = startingPort; i < ushort.MaxValue; i++) {
+				if (!portArray.Contains(i)) {
 					return i;
+				}
+			}
 
 			return 0;
 		}
